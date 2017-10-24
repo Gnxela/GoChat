@@ -32,14 +32,12 @@ func (user User) handleConnectionRead() {
 				panic(err)
 			}
 		}
-		message := string(array[:n]);
-		fmt.Println("> " + message);
+		str := string(array[:n])
+		fmt.Println("> " + str)
 		
-		for _, u := range users {
-			if(u != user) {
-				u.queue <- message;
-			}
-		}
+		message := Message{user, str}
+		
+		userMessage <- message
 	}
 }
 

@@ -9,6 +9,12 @@ var users []User = make([]User, 0)
 
 var userJoin chan User = make(chan User, 0)
 var userLeave chan User = make(chan User, 0)
+var userMessage chan Message = make(chan Message, 0)
+
+type Message struct {
+	sender User
+	message string
+}
 
 func main() {
 	listener, err := net.Listen("tcp", ":8080")
@@ -25,26 +31,36 @@ func main() {
 	}
 }
 
+func handleConnection(connection net.Conn) {
+	user := User{connection, make(chan string, 0)}
+	userJoin <- user
+}
+
 func userHandler() {
 	for {
 		select {
 		case user := <- userJoin:
-			fmt.Println("Joined: " + user.connection.RemoteAddr().String())
 			user.Start();
 			users = append(users, user)
+			fmt.Println("Joined: " + user.connection.RemoteAddr().String())
+			sendMessage("Joined: " + user.connection.RemoteAddr().String())
 		case user := <- userLeave:
-			fmt.Println("Left: " + user.connection.RemoteAddr().String())
 			user.Close();//Maybe not the best idea to do this here, if there is a queue we might try read/write to the connection
 			for p, u := range users {
 				if(user == u) {
 					users = append(users[:p], users[p + 1:]...)
 				}
 			}
+			fmt.Println("Left: " + user.connection.RemoteAddr().String())//Send message after removing user from users
+			sendMessage("Left: " + user.connection.RemoteAddr().String())
+		case message := <- userMessage:
+			sendMessage(message.message)
 		}
 	}
 }
 
-func handleConnection(connection net.Conn) {
-	user := User{connection, make(chan string, 0)}
-	userJoin <- user
+func sendMessage(str string) {
+	for _, u := range users {
+		u.queue <- str;
+	}
 }
