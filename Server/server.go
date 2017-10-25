@@ -34,7 +34,7 @@ func main() {
 }
 
 func handleConnection(connection net.Conn) {
-	user := User{connection, make(chan string, 0), "Default"}
+	user := User{connection, make(chan string, 0), "User"}
 	userJoin <- user
 }
 
@@ -59,8 +59,7 @@ func userHandler() {
 			if(message.message[0] == '/') {
 				command := message.message[1:]
 				if(strings.HasPrefix(command, "nick")) {
-					message.sender.name = strings.Split(command, " ")[1];
-					fmt.Println("Set name to: " + message.sender.name)
+					message.sender.name = command[5:];
 				}
 			} else {
 				var buffer bytes.Buffer
@@ -68,7 +67,7 @@ func userHandler() {
 				buffer.WriteString(message.sender.name)
 				buffer.WriteString("> ")
 				buffer.WriteString(message.message)
-				fmt.Println(message.sender.name)
+				fmt.Println(buffer.String())
 				sendMessage(buffer.String())//Handle all messages in a single routine so that we ensure that they are ordered correctly for all clients. "correctly" not nessesarily being the right order, but a consistant order
 			}
 		}

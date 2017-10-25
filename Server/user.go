@@ -3,7 +3,6 @@ package main
 import (
 	"net"
 	"strings"
-	"fmt"
 )
 
 type User struct {
@@ -33,8 +32,7 @@ func (user User) handleConnectionRead() {
 				panic(err)
 			}
 		}
-		str := string(array[:n])
-		fmt.Println("> " + str)
+		str := strings.TrimSpace(string(array[:n]))
 		
 		message := Message{&user, str}
 		
@@ -46,7 +44,7 @@ func (user User) handleConnectionWrite() {
 	for {
 		select {
 		case str := <- user.queue:
-			array := []byte(str[:len(str) - 1])
+			array := []byte(str[:len(str)])
 			_, err := user.connection.Write(array)
 			if(err != nil) {
 				panic(err)

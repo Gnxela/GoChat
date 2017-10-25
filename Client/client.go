@@ -18,7 +18,6 @@ func main() {
 	if(err != nil) {
 		panic(err)
 	}
-	fmt.Println("Client connected: " + connection.RemoteAddr().String())
 	go handleConnectionWrite(connection)
 	go handleConnectionRead(connection)
 	
@@ -36,7 +35,7 @@ func handleConnectionWrite(connection net.Conn) {
 	for {
 		select {
 		case str := <- queue:
-			array := []byte(str[:len(str) - 1])
+			array := []byte(str[:len(str)])
 			_, err := connection.Write(array)
 			if(err != nil) {
 				panic(err)
