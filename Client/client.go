@@ -59,6 +59,6 @@ func handleConnectionRead(connection net.Conn) {
 			}
 		}
 		message := string(array[:n]);
-		fmt.Println("> " + message);
+		fmt.Println(message);
 	}
 }

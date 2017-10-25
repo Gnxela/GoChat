@@ -9,6 +9,7 @@ import (
 type User struct {
 	connection net.Conn
 	queue chan string
+	name string
 }
 
 func (user User) Start() {
@@ -35,7 +36,7 @@ func (user User) handleConnectionRead() {
 		str := string(array[:n])
 		fmt.Println("> " + str)
 		
-		message := Message{user, str}
+		message := Message{&user, str}
 		
 		userMessage <- message
 	}

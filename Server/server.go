@@ -3,6 +3,8 @@ package main
 import (
 	"net"
 	"fmt"
+	"strings"
+	"bytes"
 )
 
 var users []User = make([]User, 0)
@@ -12,7 +14,7 @@ var userLeave chan User = make(chan User, 0)
 var userMessage chan Message = make(chan Message, 0)
 
 type Message struct {
-	sender User
+	sender *User
 	message string
 }
 
@@ -32,7 +34,7 @@ func main() {
 }
 
 func handleConnection(connection net.Conn) {
-	user := User{connection, make(chan string, 0)}
+	user := User{connection, make(chan string, 0), "Default"}
 	userJoin <- user
 }
 
@@ -54,7 +56,21 @@ func userHandler() {
 			fmt.Println("Left: " + user.connection.RemoteAddr().String())//Send message after removing user from users
 			sendMessage("Left: " + user.connection.RemoteAddr().String())
 		case message := <- userMessage:
-			sendMessage(message.message)
+			if(message.message[0] == '/') {
+				command := message.message[1:]
+				if(strings.HasPrefix(command, "nick")) {
+					message.sender.name = strings.Split(command, " ")[1];
+					fmt.Println("Set name to: " + message.sender.name)
+				}
+			} else {
+				var buffer bytes.Buffer
+				buffer.WriteString("<")
+				buffer.WriteString(message.sender.name)
+				buffer.WriteString("> ")
+				buffer.WriteString(message.message)
+				fmt.Println(message.sender.name)
+				sendMessage(buffer.String())//Handle all messages in a single routine so that we ensure that they are ordered correctly for all clients. "correctly" not nessesarily being the right order, but a consistant order
+			}
 		}
 	}
 }
