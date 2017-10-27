@@ -1,4 +1,4 @@
-package main
+package gochatserver
 
 import (
 	"net"
@@ -6,6 +6,7 @@ import (
 )
 
 type User struct {
+	server server
 	connection net.Conn
 	queue chan string
 	name string
@@ -26,17 +27,15 @@ func (user User) handleConnectionRead() {
 		n, err := user.connection.Read(array)
 		if(err != nil) {
 			if(strings.HasSuffix(err.Error(), "An existing connection was forcibly closed by the remote host.")) {
-				userLeave <- user;
+				user.server.userLeave <- user;
 				return
 			}else {
 				panic(err)
 			}
 		}
 		str := strings.TrimSpace(string(array[:n]))
-		
 		message := Message{&user, str}
-		
-		userMessage <- message
+		user.server.userMessage <- message
 	}
 }
 
@@ -46,8 +45,10 @@ func (user User) handleConnectionWrite() {
 		case str := <- user.queue:
 			array := []byte(str[:len(str)])
 			_, err := user.connection.Write(array)
-			if(err != nil) {
-				panic(err)
+			if(err != nil) {//
+				if(!strings.HasSuffix(err.Error(), "use of closed network connection")) {
+					panic(err)
+				}
 			}
 		}	
 	}
