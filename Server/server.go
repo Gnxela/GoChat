@@ -28,7 +28,7 @@ func New() server {
 	}
 }
 
-func (server server) Start() {
+func (server *server) Start() {
 	listener, err := net.Listen("tcp", ":8080")
 	if(err != nil) {
 		panic(err)
@@ -43,12 +43,12 @@ func (server server) Start() {
 	}
 }
 
-func (server server) handleConnection(connection net.Conn) {
+func (server *server) handleConnection(connection net.Conn) {
 	user := User{server, connection, make(chan string, 0), "User"}
 	server.userJoin <- user
 }
 
-func (server server) userHandler() {
+func (server *server) userHandler() {
 	for {
 		select {
 		case user := <- server.userJoin:
@@ -58,7 +58,7 @@ func (server server) userHandler() {
 			server.SendMessage("A user joined the server.")
 		case user := <- server.userLeave:
 			for p, u := range server.users {
-				if(user.connection == u.connection) {
+				if(user == u) {
 					server.users = append(server.users[:p], server.users[p + 1:]...)
 				}
 			}
@@ -84,7 +84,8 @@ func (server server) userHandler() {
 	}
 }
 
-func (server server) SendMessage(str string) {
+func (server *server) SendMessage(str string) {
+	fmt.Println(len(server.users))
 	for _, u := range server.users {
 		u.queue <- str;
 	}

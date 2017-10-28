@@ -6,7 +6,7 @@ import (
 )
 
 type User struct {
-	server server
+	server *server
 	connection net.Conn
 	queue chan string
 	name string
