@@ -9,7 +9,7 @@ import (
 func main() {
 	server := gochatserver.New()
 	client := gochatclient.New();
-	go server.Start();
+	server.Start();
 	client.Start();
 	for {
 		client.SendMessage("Hello!")

@@ -13,7 +13,7 @@ type client struct {
 
 func New() client {
 	return client {
-		make(chan string, 0),
+		make(chan string, 30),
 		nil,
 	}
 }
@@ -24,20 +24,20 @@ func (client *client) Start() {
 		panic(err)
 	}
 	client.connection = connection
-	go client.handleConnectionWrite(connection)
-	go client.handleConnectionRead(connection)
+	go client.handleConnectionWrite()
+	go client.handleConnectionRead()
 }
 
 func (client *client) SendMessage(message string) {
 	client.queue <- message;
 }
 
-func (client *client) handleConnectionWrite(connection net.Conn) {
+func (client *client) handleConnectionWrite() {
 	for {
 		select {
 		case str := <- client.queue:
 			array := []byte(str[:len(str)])
-			_, err := connection.Write(array)
+			_, err := client.connection.Write(array)
 			if(err != nil) {
 				panic(err)
 			}
@@ -45,14 +45,14 @@ func (client *client) handleConnectionWrite(connection net.Conn) {
 	}
 }
 
-func (client *client) handleConnectionRead(connection net.Conn) {
+func (client *client) handleConnectionRead() {
 	for {
 		array := make([]byte, 1024);
-		n, err := connection.Read(array)
+		n, err := client.connection.Read(array)
 		if(err != nil) {
 			if(strings.HasSuffix(err.Error(), "An existing connection was forcibly closed by the remote host.")) {
-				fmt.Println("Connection closed: " + connection.RemoteAddr().String())
-				connection.Close();
+				fmt.Println("Connection closed: " + client.connection.RemoteAddr().String())
+				client.connection.Close();
 				return
 			}else {
 				panic(err)
