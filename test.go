@@ -2,16 +2,27 @@ package main
 
 import (
 	"./server"
+	"./client"
 	"time"
-	"fmt"
 )
 
 func main() {
 	server := gochatserver.New()
+	client := gochatclient.New();
 	go server.Start();
+	client.Start();
 	for {
-		server.SendMessage("Hello!")
-		fmt.Println("Hello!")
+		client.SendMessage("Hello!")
 		time.Sleep(time.Second * 5)
 	}
+	/*
+	reader := bufio.NewReader(os.Stdin)
+	for {
+		str, err := reader.ReadString('\n')
+		if(err != nil) {
+			panic(err)
+		}
+		client.SendMessage(str)
+	}
+	*/
 }

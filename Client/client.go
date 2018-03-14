@@ -1,40 +1,41 @@
-package main
+package gochatclient
 
 import (
 	"net"
 	"fmt"
-	"sync"
-	"bufio"
-	"os"
 	"strings"
 )
 
-var wg sync.WaitGroup
-var queue chan string
+type client struct {
+	queue chan string
+	connection net.Conn
+}
 
-func main() {
-	queue = make(chan string, 0)
+func New() client {
+	return client {
+		make(chan string, 0),
+		nil,
+	}
+}
+
+func (client *client) Start() {
 	connection, err := net.Dial("tcp", "localhost:8080")
 	if(err != nil) {
 		panic(err)
 	}
-	go handleConnectionWrite(connection)
-	go handleConnectionRead(connection)
-	
-	reader := bufio.NewReader(os.Stdin)
-	for {
-		str, err := reader.ReadString('\n')
-		if(err != nil) {
-			panic(err)
-		}
-		queue <- str
-	}
+	client.connection = connection
+	go client.handleConnectionWrite(connection)
+	go client.handleConnectionRead(connection)
 }
 
-func handleConnectionWrite(connection net.Conn) {
+func (client *client) SendMessage(message string) {
+	client.queue <- message;
+}
+
+func (client *client) handleConnectionWrite(connection net.Conn) {
 	for {
 		select {
-		case str := <- queue:
+		case str := <- client.queue:
 			array := []byte(str[:len(str)])
 			_, err := connection.Write(array)
 			if(err != nil) {
@@ -44,7 +45,7 @@ func handleConnectionWrite(connection net.Conn) {
 	}
 }
 
-func handleConnectionRead(connection net.Conn) {
+func (client *client) handleConnectionRead(connection net.Conn) {
 	for {
 		array := make([]byte, 1024);
 		n, err := connection.Read(array)

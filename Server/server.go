@@ -85,7 +85,6 @@ func (server *server) userHandler() {
 }
 
 func (server *server) SendMessage(str string) {
-	fmt.Println(len(server.users))
 	for _, u := range server.users {
 		u.queue <- str;
 	}
