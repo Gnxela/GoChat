@@ -4,16 +4,23 @@ import (
 	"net"
 	"fmt"
 	"strings"
+	"../common"
+	
+	"github.com/Gnxela/GnPacket/GnPacket"
 )
 
 type client struct {
-	queue chan string
+	queue chan common.PacketMessage
 	connection net.Conn
+	netManager GnPacket.NetManager
+	data []byte
 }
 
 func New() client {
 	return client {
-		make(chan string, 30),
+		make(chan common.PacketMessage, 30),
+		nil,
+		GnPacket.New(100),
 		nil,
 	}
 }
@@ -24,19 +31,29 @@ func (client *client) Start() {
 		panic(err)
 	}
 	client.connection = connection
+	
+	client.netManager.AddHandler(1, client.handleMessage)
+	
 	go client.handleConnectionWrite()
 	go client.handleConnectionRead()
 }
 
+func (client *client) handleMessage(packet GnPacket.GnPacket) bool {
+	message := common.PacketMessage{&packet, ""}
+	message.Deserialize(packet.Data)
+	fmt.Println(message.Message)
+	return true
+}
+
 func (client *client) SendMessage(message string) {
-	client.queue <- message;
+	client.queue <- common.NewPacketMessage(message);
 }
 
 func (client *client) handleConnectionWrite() {
 	for {
 		select {
-		case str := <- client.queue:
-			array := []byte(str[:len(str)])
+		case packet := <- client.queue:
+			array := packet.Write(&packet)
 			_, err := client.connection.Write(array)
 			if(err != nil) {
 				panic(err)
@@ -58,7 +75,7 @@ func (client *client) handleConnectionRead() {
 				panic(err)
 			}
 		}
-		message := string(array[:n]);
-		fmt.Println(message);
+		client.data = append(client.data, array[:n]...)
+		client.netManager.ReadData(&client.data)
 	}
 }

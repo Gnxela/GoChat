@@ -13,7 +13,7 @@ func main() {
 	client.Start();
 	for {
 		client.SendMessage("Hello!")
-		time.Sleep(time.Second * 5)
+		time.Sleep(time.Second * 1)
 	}
 	/*
 	reader := bufio.NewReader(os.Stdin)

@@ -3,12 +3,14 @@ package gochatserver
 import (
 	"net"
 	"strings"
+	"../common"
 )
 
 type User struct {
 	server *server
 	connection net.Conn
-	queue chan string
+	data []byte
+	queue chan common.PacketMessage
 	name string
 }
 
@@ -33,19 +35,18 @@ func (user User) handleConnectionRead() {
 				panic(err)
 			}
 		}
-		str := strings.TrimSpace(string(array[:n]))
-		message := Message{&user, str}
-		user.server.userMessage <- message
+		user.data = append(user.data, array[:n]...);//Needs a read write lock, but will add later
+		user.server.netManager.ReadData(&user.data)
 	}
 }
 
 func (user User) handleConnectionWrite() {
 	for {
 		select {
-		case str := <- user.queue:
-			array := []byte(str[:len(str)])
+		case packet := <- user.queue:
+			array := packet.Write(&packet)
 			_, err := user.connection.Write(array)
-			if(err != nil) {//
+			if(err != nil) {
 				if(!strings.HasSuffix(err.Error(), "use of closed network connection")) {
 					panic(err)
 				}
