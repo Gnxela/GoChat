@@ -8,11 +8,14 @@ import (
 
 func main() {
 	server := gochatserver.New()
-	client := gochatclient.New();
+	client1 := gochatclient.New();
+	client2 := gochatclient.New();
 	server.Start();
-	client.Start();
+	client1.Start("Alex");
+	client2.Start("Bob");
 	for {
-		client.SendMessage("Hello!")
+		client1.SendMessage("Hello!")
+		client2.SendMessage("Hello!")
 		time.Sleep(time.Second * 1)
 	}
 	/*

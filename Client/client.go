@@ -25,17 +25,38 @@ func New() client {
 	}
 }
 
-func (client *client) Start() {
+func (client *client) Start(name string) {
 	connection, err := net.Dial("tcp", "localhost:8080")
 	if(err != nil) {
 		panic(err)
 	}
 	client.connection = connection
 	
+	client.netManager.AddHandler(0, client.handshakeHandler)
 	client.netManager.AddHandler(1, client.handleMessage)
+	client.sendHandshake(name)
+}
+
+func (client *client) sendHandshake(name string) {
+	packet := common.NewPacketHandshake(name)
+	array := packet.Write(&packet)
+	client.connection.Write(array)
 	
 	go client.handleConnectionWrite()
 	go client.handleConnectionRead()
+}
+
+func (client *client) handshakeHandler(packet GnPacket.GnPacket) bool {
+	handshake := common.PacketHandshake{&packet, ""}
+	handshake.Deserialize(packet.Data)
+	
+	if (handshake.Name == "") {
+		fmt.Printf("Unhandled Packets After Handshake(C): %d\n", len(client.netManager.UnhandledQueue))
+	} else {
+		panic("Server rejected handshake: " + handshake.Name);
+	}
+	
+	return false//No other handlers should ever really get this.
 }
 
 func (client *client) handleMessage(packet GnPacket.GnPacket) bool {
@@ -58,7 +79,8 @@ func (client *client) handleConnectionWrite() {
 			if(err != nil) {
 				panic(err)
 			}
-		}	
+			break
+		}
 	}
 }
 
