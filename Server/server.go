@@ -51,7 +51,7 @@ func (server *server) connectionListener(listener net.Listener) {
 
 func (server *server) handleConnection(connection net.Conn) {
 	user := User{server, connection, GnPacket.New(100), nil, make(chan common.PacketMessage, 30), "User"}
-	server.userJoin <- &user//Won't remove this yet, it's actually a nice way to ensure no concurrent errors
+	server.userJoin <- &user//TODO. Create a server add/remove user function or something. Won't remove this yet, it's actually a nice way to ensure no concurrent errors
 }
 
 func (server *server) userHandler() {

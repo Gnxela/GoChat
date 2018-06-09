@@ -7,8 +7,6 @@ import (
 	"../common"
 	
 	"github.com/Gnxela/GnPacket/GnPacket"
-
-	"fmt"
 )
 
 type User struct {
@@ -57,9 +55,21 @@ func (user *User) handleHandshake(packet GnPacket.GnPacket) (bool) {
 	//Setup user
 	user.netManager.RemoveHandler(0, user.handleHandshake)
 	user.netManager.AddHandler(1, user.handleMessage)
-	fmt.Printf("Unhandled Packets After Handshake(S): %d\n", len(user.netManager.UnhandledQueue))
+	user.recycleUnhandledPackets()
 	
 	return false
+}
+
+func (user *User) recycleUnhandledPackets() {
+	num := len(user.netManager.UnhandledQueue)
+	L: for i := 0; i < num; i++ {
+		select {
+		case packet := <- user.netManager.UnhandledQueue:
+			user.netManager.DispatchPacket(packet)
+		default:
+			break L//Breaks the for loop.
+		}
+	}
 }
 
 func (user *User) handleMessage(packet GnPacket.GnPacket) bool {
@@ -71,7 +81,7 @@ func (user *User) handleMessage(packet GnPacket.GnPacket) bool {
 	buffer.WriteString(user.name)
 	buffer.WriteString("> ")
 	buffer.WriteString(message.Message)
-	user.server.SendMessage(buffer.String())//Handle all messages in a single routine so that we ensure that they are ordered correctly for all clients. "correctly" not nessesarily being the right order, but a consistant order
+	user.server.SendMessage(buffer.String())//TODO ensure order, needs locking on SendMessage
 	return true
 }
 
@@ -88,7 +98,7 @@ func (user *User) handleConnectionRead() {
 				panic(err)
 			}
 		}
-		user.data = append(user.data, array[:n]...);//Needs a read write lock, but will add later
+		user.data = append(user.data, array[:n]...);//TODO Needs a read write lock, but will add later
 		user.netManager.ReadData(&user.data)
 	}
 }

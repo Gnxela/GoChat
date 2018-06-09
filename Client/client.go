@@ -33,17 +33,17 @@ func (client *client) Start(name string) {
 	client.connection = connection
 	
 	client.netManager.AddHandler(0, client.handshakeHandler)
-	client.netManager.AddHandler(1, client.handleMessage)
+	
 	client.sendHandshake(name)
+	
+	go client.handleConnectionWrite()
+	go client.handleConnectionRead()
 }
 
 func (client *client) sendHandshake(name string) {
 	packet := common.NewPacketHandshake(name)
 	array := packet.Write(&packet)
 	client.connection.Write(array)
-	
-	go client.handleConnectionWrite()
-	go client.handleConnectionRead()
 }
 
 func (client *client) handshakeHandler(packet GnPacket.GnPacket) bool {
@@ -51,12 +51,26 @@ func (client *client) handshakeHandler(packet GnPacket.GnPacket) bool {
 	handshake.Deserialize(packet.Data)
 	
 	if (handshake.Name == "") {
-		fmt.Printf("Unhandled Packets After Handshake(C): %d\n", len(client.netManager.UnhandledQueue))
+		client.netManager.RemoveHandler(0, client.handshakeHandler)
+		client.netManager.AddHandler(1, client.handleMessage)
+		client.recycleUnhandledPackets()
 	} else {
 		panic("Server rejected handshake: " + handshake.Name);
 	}
 	
 	return false//No other handlers should ever really get this.
+}
+
+func (client *client) recycleUnhandledPackets() {
+	num := len(client.netManager.UnhandledQueue)
+	L: for i := 0; i < num; i++ {
+		select {
+		case packet := <- client.netManager.UnhandledQueue:
+			client.netManager.DispatchPacket(packet)
+		default:
+			break L//Breaks the for loop.
+		}
+	}
 }
 
 func (client *client) handleMessage(packet GnPacket.GnPacket) bool {
