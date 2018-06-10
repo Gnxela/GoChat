@@ -14,6 +14,7 @@ type client struct {
 	connection net.Conn
 	netManager GnPacket.NetManager
 	data []byte
+	Name string
 }
 
 func New() client {
@@ -22,6 +23,7 @@ func New() client {
 		nil,
 		GnPacket.New(100),
 		nil,
+		"",
 	}
 }
 
@@ -34,14 +36,15 @@ func (client *client) Start(name string) {
 	
 	client.netManager.AddHandler(0, client.handshakeHandler)
 	
-	client.sendHandshake(name)
+	client.Name = name
+	client.sendHandshake()
 	
 	go client.handleConnectionWrite()
 	go client.handleConnectionRead()
 }
 
-func (client *client) sendHandshake(name string) {
-	packet := common.NewPacketHandshake(name)
+func (client *client) sendHandshake() {
+	packet := common.NewPacketHandshake(client.Name)
 	array := packet.Write(&packet)
 	client.connection.Write(array)
 }
@@ -76,7 +79,7 @@ func (client *client) recycleUnhandledPackets() {
 func (client *client) handleMessage(packet GnPacket.GnPacket) bool {
 	message := common.PacketMessage{&packet, ""}
 	message.Deserialize(packet.Data)
-	fmt.Println(message.Message)
+	fmt.Println(client.Name + "|" + message.Message)
 	return true
 }
 

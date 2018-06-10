@@ -3,6 +3,7 @@ package gochatserver
 import (
 	"net"
 	"fmt"
+	"sync"
 	"../common"
 
 	"github.com/Gnxela/GnPacket/GnPacket"	
@@ -10,9 +11,8 @@ import (
 
 type server struct {
 	users []*User
-	userJoin chan *User 
-	userLeave chan *User
-	userMessage chan Message
+	usersLock *sync.Mutex
+	sendMessageLock *sync.Mutex
 }
 
 type Message struct {
@@ -23,9 +23,8 @@ type Message struct {
 func New() server {
 	return server{
 		make([]*User, 0),
-		make(chan *User, 10),
-		make(chan *User, 10),
-		make(chan Message, 100),
+		&sync.Mutex{},
+		&sync.Mutex{},
 	}
 }
 
@@ -35,7 +34,6 @@ func (server *server) Start() {
 		panic(err)
 	}
 		
-	go server.userHandler()
 	go server.connectionListener(listener)
 }
 
@@ -51,31 +49,34 @@ func (server *server) connectionListener(listener net.Listener) {
 
 func (server *server) handleConnection(connection net.Conn) {
 	user := User{server, connection, GnPacket.New(100), nil, make(chan common.PacketMessage, 30), "User"}
-	server.userJoin <- &user//TODO. Create a server add/remove user function or something. Won't remove this yet, it's actually a nice way to ensure no concurrent errors
+	user.Start();
 }
 
-func (server *server) userHandler() {
-	for {
-		select {
-		case user := <- server.userJoin:
-			user.Start();
-			server.users = append(server.users, user)//TODO need to change what happens here. Should wait for handshake
-			server.SendMessage("A user joined the server.")
-		case user := <- server.userLeave:
-			/*for p, u := range server.users {
-				if(user == u) {
-					server.users = append(server.users[:p], server.users[p + 1:]...)
-				}
-			}*/
-			user.Close();//Maybe not the best idea to do this here, if there is a queue we might try read/write to the connection. I am correct, there is a rare error when disconnecting.
-			server.SendMessage(user.name + " left the server.")
+func (server *server) AddUser(user *User) {
+	server.usersLock.Lock()
+	server.users = append(server.users, user)
+	server.usersLock.Unlock()
+	server.SendMessage(user.Name + " joined the server.")
+}
+
+func (server *server) RemoveUser(user *User) {
+	server.usersLock.Lock()
+	for p, u := range server.users {
+		if(user == u) {
+			server.users = append(server.users[:p], server.users[p + 1:]...)
 		}
 	}
+	server.usersLock.Unlock()
+
+	user.Close();//Maybe not the best idea to do this here, if there is a queue we might try read/write to the connection. I am correct, there is a rare error when disconnecting.
+	server.SendMessage(user.Name + " left the server.")
 }
 
 func (server *server) SendMessage(str string) {
-	fmt.Println("> " + str);
+	server.sendMessageLock.Lock()
+	fmt.Println("> " + str)
 	for _, u := range server.users {
 		u.queue <- common.NewPacketMessage(str)
 	}
+	server.sendMessageLock.Unlock()
 }

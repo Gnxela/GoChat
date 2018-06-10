@@ -15,7 +15,7 @@ type User struct {
 	netManager GnPacket.NetManager
 	data []byte
 	queue chan common.PacketMessage
-	name string
+	Name string
 }
 
 func (user *User) Start() {
@@ -38,7 +38,7 @@ func (user *User) handleHandshake(packet GnPacket.GnPacket) (bool) {
 	//Validate data
 	var userError string = ""
 	
-	user.name = handshake.Name;
+	user.Name = handshake.Name;
 	
 	if handshake.Name == "" {
 		userError = "Username invalid"
@@ -56,6 +56,7 @@ func (user *User) handleHandshake(packet GnPacket.GnPacket) (bool) {
 	user.netManager.RemoveHandler(0, user.handleHandshake)
 	user.netManager.AddHandler(1, user.handleMessage)
 	user.recycleUnhandledPackets()
+	user.server.AddUser(user)
 	
 	return false
 }
@@ -77,11 +78,10 @@ func (user *User) handleMessage(packet GnPacket.GnPacket) bool {
 	message.Deserialize(packet.Data)
 	var buffer bytes.Buffer
 	buffer.WriteString("<")
-	//buffer.WriteString(message.sender.name)
-	buffer.WriteString(user.name)
+	buffer.WriteString(user.Name)
 	buffer.WriteString("> ")
 	buffer.WriteString(message.Message)
-	user.server.SendMessage(buffer.String())//TODO ensure order, needs locking on SendMessage
+	user.server.SendMessage(buffer.String())
 	return true
 }
 
@@ -91,8 +91,8 @@ func (user *User) handleConnectionRead() {
 		array := make([]byte, 1024);
 		n, err := user.connection.Read(array)
 		if (err != nil) {
-			if(strings.HasSuffix(err.Error(), "An existing connection was forcibly closed by the remote host.")) {
-				user.server.userLeave <- user;
+			if(strings.HasSuffix(err.Error(), "An existing connection was forcibly closed by the remote host.")) {//TODO rather than string comparison there's probably an error object I can compare to.
+				user.server.RemoveUser(user);
 				return
 			}else {
 				panic(err)
