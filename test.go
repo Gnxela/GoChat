@@ -8,15 +8,15 @@ import (
 
 func main() {
 	server := gochatserver.New()
-	client1 := gochatclient.New();
-	client2 := gochatclient.New();
-	server.Start();
-	client1.Start("Alex");
-	client2.Start("Bob");
+	server.Start()
+	
+	client2 := gochatclient.New()
+	client2.Start("Bob")
+	client2.SendMessage("Hello!")
+	time.Sleep(time.Second * 1)
+	client2.Stop()
 	for {
-		client1.SendMessage("Hello!")
-		client2.SendMessage("Hello!")
-		time.Sleep(time.Second * 1)
+	
 	}
 	/*
 	reader := bufio.NewReader(os.Stdin)

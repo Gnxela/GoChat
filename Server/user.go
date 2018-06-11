@@ -1,6 +1,7 @@
 package gochatserver
 
 import (
+	"io"
 	"net"
 	"strings"
 	"bytes"
@@ -91,10 +92,10 @@ func (user *User) handleConnectionRead() {
 		array := make([]byte, 1024);
 		n, err := user.connection.Read(array)
 		if (err != nil) {
-			if(strings.HasSuffix(err.Error(), "An existing connection was forcibly closed by the remote host.")) {//TODO rather than string comparison there's probably an error object I can compare to.
+			if err == io.EOF || strings.HasSuffix(err.Error(), "An existing connection was forcibly closed by the remote host.") {//TODO rather than string comparison there's probably an error object I can compare to.
 				user.server.RemoveUser(user);
 				return
-			}else {
+			} else {
 				panic(err)
 			}
 		}

@@ -10,11 +10,12 @@ import (
 )
 
 type client struct {
-	queue chan common.PacketMessage
-	connection net.Conn
-	netManager GnPacket.NetManager
-	data []byte
-	Name string
+	queue			chan common.PacketMessage
+	connection		net.Conn
+	netManager		GnPacket.NetManager
+	data			[]byte
+	Name			string
+	stopChannel		chan int8
 }
 
 func New() client {
@@ -24,6 +25,7 @@ func New() client {
 		GnPacket.New(100),
 		nil,
 		"",
+		make(chan int8, 10),//Reserving 10 spaces, really should not need this but meh
 	}
 }
 
@@ -41,6 +43,11 @@ func (client *client) Start(name string) {
 	
 	go client.handleConnectionWrite()
 	go client.handleConnectionRead()
+}
+
+func (client *client) Stop() {
+	client.stopChannel <- 0
+	client.connection.Close()
 }
 
 func (client *client) sendHandshake() {
@@ -88,8 +95,11 @@ func (client *client) SendMessage(message string) {
 }
 
 func (client *client) handleConnectionWrite() {
-	for {
+	L: for {
 		select {
+		case <- client.stopChannel:
+			client.stopChannel <- 0
+			break L
 		case packet := <- client.queue:
 			array := packet.Write(&packet)
 			_, err := client.connection.Write(array)
@@ -102,19 +112,27 @@ func (client *client) handleConnectionWrite() {
 }
 
 func (client *client) handleConnectionRead() {
-	for {
-		array := make([]byte, 1024);
-		n, err := client.connection.Read(array)
-		if(err != nil) {
-			if(strings.HasSuffix(err.Error(), "An existing connection was forcibly closed by the remote host.")) {
-				fmt.Println("Connection closed: " + client.connection.RemoteAddr().String())
-				client.connection.Close();
-				return
-			}else {
-				panic(err)
+	L: for {
+		select {
+		case <- client.stopChannel:
+			client.stopChannel <- 0
+			break L
+		default:
+			array := make([]byte, 1024);
+			n, err := client.connection.Read(array)
+			if(err != nil) {
+				if strings.HasSuffix(err.Error(), "use of closed network connection") {//Honestly spent 20 minutes looking for a better way to do this. The error is from "poll", ErrNetClosing. Can't import poll though
+					client.Stop()
+				} else if strings.HasSuffix(err.Error(), "An existing connection was forcibly closed by the remote host.") {
+					client.Stop()
+					return
+				} else {
+					fmt.Println(err)
+				}
 			}
+			client.data = append(client.data, array[:n]...)
+			client.netManager.ReadData(&client.data)
+			break
 		}
-		client.data = append(client.data, array[:n]...)
-		client.netManager.ReadData(&client.data)
 	}
 }
